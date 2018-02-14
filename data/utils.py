@@ -3,6 +3,8 @@ from __future__ import print_function
 import fnmatch
 import io
 import os
+
+import torch
 from tqdm import tqdm
 import subprocess
 
@@ -34,3 +36,30 @@ def order_and_prune_files(file_paths, min_duration, max_duration):
 
     duration_file_paths.sort(key=func)
     return [x[0] for x in duration_file_paths]  # Remove durations
+
+
+class tofp16(torch.nn.Module):
+    def __init__(self):
+        super(tofp16, self).__init__()
+
+    def forward(self, input):
+        return input.half()
+
+
+def BN_convert_float(module):
+    """
+    BatchNorm layers to have parameters in single precision.
+    Find all layers and convert them back to float. This can't
+    be done with built in .apply as that function will apply
+    fn to all modules, parameters, and buffers. Thus we wouldn't
+    be able to guard the float conversion based on the module type.
+    """
+    if isinstance(module, torch.nn.modules.batchnorm._BatchNorm):
+        module.float()
+    for child in module.children():
+        BN_convert_float(child)
+    return module
+
+
+def network_to_half(network):
+    return torch.nn.Sequential(tofp16(), BN_convert_float(network.half()))
