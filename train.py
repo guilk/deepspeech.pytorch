@@ -220,7 +220,6 @@ if __name__ == '__main__':
             for param in param_copy:
                 param.requires_grad = True
             optimizer = torch.optim.SGD(param_copy, lr=3e-4, momentum=0.9, nesterov=True)
-
             model = network_to_half(model)
         model = torch.nn.DataParallel(model).cuda()
 
@@ -279,8 +278,8 @@ if __name__ == '__main__':
                 set_grad(param_copy, list(model.parameters()))
                 optimizer.step()
                 params = list(model.parameters())
-                for i in range(len(params)):
-                    params[i].data.copy_(param_copy[i].data)
+                for x in range(len(params)):
+                    params[x].data.copy_(param_copy[x].data)
             else:
                 optimizer.step()
 
@@ -302,7 +301,8 @@ if __name__ == '__main__':
                 print("Saving checkpoint model to %s" % file_path)
                 torch.save(DeepSpeech.serialize(model, optimizer=optimizer, epoch=epoch, iteration=i,
                                                 loss_results=loss_results,
-                                                wer_results=wer_results, cer_results=cer_results, avg_loss=avg_loss),
+                                                wer_results=wer_results, cer_results=cer_results, avg_loss=avg_loss,
+                                                half=args.half_precision),
                            file_path)
             del loss
             del out
@@ -394,7 +394,8 @@ if __name__ == '__main__':
         if args.checkpoint:
             file_path = '%s/deepspeech_%d.pth.tar' % (save_folder, epoch + 1)
             torch.save(DeepSpeech.serialize(model, optimizer=optimizer, epoch=epoch, loss_results=loss_results,
-                                            wer_results=wer_results, cer_results=cer_results),
+                                            wer_results=wer_results, cer_results=cer_results,
+                                            half=args.half_precision),
                        file_path)
         # anneal lr
         optim_state = optimizer.state_dict()
@@ -405,7 +406,8 @@ if __name__ == '__main__':
         if best_wer is None or best_wer > wer:
             print("Found better validated model, saving to %s" % args.model_path)
             torch.save(DeepSpeech.serialize(model, optimizer=optimizer, epoch=epoch, loss_results=loss_results,
-                                            wer_results=wer_results, cer_results=cer_results)
+                                            wer_results=wer_results, cer_results=cer_results,
+                                            half=args.half_precision)
                        , args.model_path)
             best_wer = wer
 

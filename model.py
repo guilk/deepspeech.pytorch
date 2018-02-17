@@ -7,6 +7,8 @@ import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 from torch.autograd import Variable
 
+from data.utils import network_to_half
+
 supported_rnns = {
     'lstm': nn.LSTM,
     'rnn': nn.RNN,
@@ -203,6 +205,8 @@ class DeepSpeech(nn.Module):
         model.load_state_dict(package['state_dict'])
         for x in model.rnns:
             x.flatten_parameters()
+        if package.get('half', False):
+            model = network_to_half(model)
         if cuda:
             model = torch.nn.DataParallel(model).cuda()
         return model
@@ -213,15 +217,19 @@ class DeepSpeech(nn.Module):
                     labels=package['labels'], audio_conf=package['audio_conf'],
                     rnn_type=supported_rnns[package['rnn_type']], bidirectional=package.get('bidirectional', True))
         model.load_state_dict(package['state_dict'])
+        if package.get('half', False):
+            model = network_to_half(model)
         if cuda:
             model = torch.nn.DataParallel(model).cuda()
         return model
 
     @staticmethod
     def serialize(model, optimizer=None, epoch=None, iteration=None, loss_results=None,
-                  cer_results=None, wer_results=None, avg_loss=None, meta=None):
+                  cer_results=None, wer_results=None, avg_loss=None, meta=None, half=False):
         model_is_cuda = next(model.parameters()).is_cuda
         model = model.module if model_is_cuda else model
+        if half:
+            model = model[1]  # First layer is a transform for fp16
         package = {
             'version': model._version,
             'hidden_size': model._hidden_size,
@@ -230,7 +238,8 @@ class DeepSpeech(nn.Module):
             'audio_conf': model._audio_conf,
             'labels': model._labels,
             'state_dict': model.state_dict(),
-            'bidirectional': model._bidirectional
+            'bidirectional': model._bidirectional,
+            'half': half
         }
         if optimizer is not None:
             package['optim_dict'] = optimizer.state_dict()
