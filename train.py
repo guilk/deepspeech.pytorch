@@ -10,6 +10,7 @@ from torch.autograd import Variable
 from warpctc_pytorch import CTCLoss
 
 from data.data_loader import AudioDataLoader, SpectrogramDataset, BucketingSampler
+from data.utils import network_to_half, set_grad
 from decoder import GreedyDecoder
 from model import DeepSpeech, supported_rnns
 
@@ -213,11 +214,15 @@ if __name__ == '__main__':
     if not args.no_shuffle and start_epoch != 0:
         print("Shuffling batches for the following epochs")
         train_sampler.shuffle()
-
     if args.cuda:
-        model = torch.nn.DataParallel(model).cuda()
         if args.half_precision:
-            model = model.half()
+            param_copy = [param.clone().type(torch.cuda.FloatTensor).detach() for param in model.parameters()]
+            for param in param_copy:
+                param.requires_grad = True
+            optimizer = torch.optim.SGD(param_copy, lr=3e-4, momentum=0.9, nesterov=True)
+
+            model = network_to_half(model)
+        model = torch.nn.DataParallel(model).cuda()
 
     print(model)
     print("Number of parameters: %d" % DeepSpeech.get_param_size(model))
@@ -270,13 +275,18 @@ if __name__ == '__main__':
                 loss = loss.cuda().half()
 
             # compute gradient
-            optimizer.zero_grad()
+            model.zero_grad()
             loss.backward()
-
             torch.nn.utils.clip_grad_norm(parameters, args.max_norm)
-
             # SGD step
-            optimizer.step()
+            if args.half_precision:
+                set_grad(param_copy, list(model.parameters()))
+                optimizer.step()
+                params = list(model.parameters())
+                for i in range(len(params)):
+                    params[i].data.copy_(param_copy[i].data)
+            else:
+                optimizer.step()
 
             if args.cuda:
                 torch.cuda.synchronize()

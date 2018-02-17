@@ -6,7 +6,7 @@ from torch.autograd import Variable
 from warpctc_pytorch import CTCLoss
 from tqdm import trange
 
-from data.utils import network_to_half
+from data.utils import network_to_half, set_grad
 from model import DeepSpeech, supported_rnns
 
 parser = argparse.ArgumentParser()
@@ -53,11 +53,6 @@ criterion = CTCLoss()
 
 seconds = int(args.seconds)
 batch_size = int(args.batch_size)
-
-
-def set_grad(param_copy, param):
-    for p_optim, p_model in zip(param_copy, param):
-        p_optim.grad = p_model.grad.float()
 
 
 def iteration(input_data):

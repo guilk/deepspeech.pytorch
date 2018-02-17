@@ -63,3 +63,8 @@ def BN_convert_float(module):
 
 def network_to_half(network):
     return torch.nn.Sequential(tofp16(), BN_convert_float(network.half()))
+
+
+def set_grad(param_copy, param):
+    for p_optim, p_model in zip(param_copy, param):
+        p_optim.grad = p_model.grad.float()
