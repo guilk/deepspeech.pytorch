@@ -78,8 +78,8 @@ def iteration(input_data):
     set_grad(param_copy, list(model.parameters()))
     optimizer.step()
     params = list(model.parameters())
-    for i in range(len(params)):
-        params[i].data.copy_(param_copy[i].data)
+    for x in range(len(params)):
+        params[x].data.copy_(param_copy[x].data)
     torch.cuda.synchronize()
     end = time.time()
     del loss
